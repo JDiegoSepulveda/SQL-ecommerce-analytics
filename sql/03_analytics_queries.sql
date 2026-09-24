@@ -17,8 +17,8 @@ FROM vendedores v
 INNER JOIN produtos pro ON v.vendedor_id = pro.vendedor_id
 INNER JOIN itens_pedido ip ON pro.produto_id = ip.produto_id
 INNER JOIN pedidos ped ON ped.pedido_id = ip.pedido_id
-WHERE ped.data_pedido >= '2026-05-01 00:00:00' 
-AND ped.data_pedido <='2026-05-31 23:59:59' 
+WHERE ped.data_pedido >= '2026-05-01' 
+AND ped.data_pedido <='2026-05-31' 
 AND ped.status_pedido = 'Pago'
 GROUP BY 
 	v.vendedor_id, 
@@ -28,14 +28,14 @@ GROUP BY
     pro.produto_id, 
     pro.nome_produto
 ORDER BY 
-	faturamento_total DESC;
+	faturamento_total DESC,
+    total_itens_vendidos DESC;
 
 /* PERGUNTA 2: Identificação de clientes inativos
 Identifique clientes que não realizam uma compra há pelo menos 90 dias, considerando apenas pedidos pagos. 
 Apresente a última compra e o valor histórico gasto por cada cliente, para apoiar ações de reativação.
 */
 
-EXPLAIN
 SELECT 
     c.cliente_id,
     c.pnome,
@@ -54,7 +54,7 @@ GROUP BY
 HAVING MAX(ped.data_pedido) <= date_sub('2026-08-01', INTERVAL 90 DAY);
     
 /* PERGUNTA 3: Produtos de maior faturamento por categoria
-categoria, identifique o produto que apresentou o maior faturamento em pedidos pagos e calcule sua participação 
+identifique o produto que apresentou o maior faturamento em pedidos pagos e calcule sua participação 
 percentual no faturamento total da respectiva categoria.
 */
 
@@ -98,7 +98,6 @@ Analise a evolução mensal do faturamento por categoria ao longo de 2026 e calc
 categoria durante o ano, permitindo acompanhar a evolução do desempenho comercial.
 */
 
-explain
 WITH faturamento_mensal AS(
 	SELECT
 		v.categoria,
@@ -117,15 +116,13 @@ WITH faturamento_mensal AS(
 		v.tipo_comercio,
 		MONTH(ped.data_pedido),
 		DATE_FORMAT(ped.data_pedido, '%M')
-	ORDER BY 
-		MONTH(ped.data_pedido)
 )
 SELECT 
 	categoria,
     tipo_comercio,
     valor_mensal,
     periodo_mensal,
-    SUM(valor_mensal) OVER (PARTITION BY categoria, tipo_comercio ORDER BY mes
+    SUM(valor_mensal) OVER (PARTITION BY categoria ORDER BY mes
     ROWS BETWEEN unbounded preceding AND CURRENT ROW) valor_acumulado
 FROM faturamento_mensal
 ORDER BY mes;
@@ -137,7 +134,6 @@ Considerando os pedidos pagos realizados em 2026, identifique a participação d
  gestão de estoque.
 */
 
-EXPLAIN
 WITH faturamento_por_produto AS (
 SELECT
 	v.categoria,
@@ -163,7 +159,7 @@ SELECT
     quantidade_vendida,
     faturamento_total_produto,
     SUM(faturamento_total_produto) 
-		OVER (ORDER BY faturamento_total_produto DESC) faturamento_acumulado,
+		OVER (ORDER BY faturamento_total_produto DESC, produto_id) faturamento_acumulado,
     SUM(faturamento_total_produto) 
 		OVER () faturamento_geral
     FROM faturamento_por_produto
@@ -182,7 +178,7 @@ SELECT
 FROM acumulado
 ORDER BY faturamento_total_produto DESC;
 
-/* PERGUNTA 6: Quais são os 5 clientes que possuem o maior volime de compras acumulado em 2026,
+/* PERGUNTA 6: Quais são os 5 clientes que possuem o maior faturamento acumulado em 2026,
 qual é o ticket médio de cada um deles e qual a categoria de produtos eles mais consomem?
 */
 
